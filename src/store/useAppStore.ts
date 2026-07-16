@@ -132,6 +132,11 @@ interface AppState {
   runCompare: () => Promise<void>;
   deleteSnapshot: (id: string) => Promise<void>;
 
+  // ---- Full Disk Access ----
+  /** null = not checked yet, false = missing (show the banner). */
+  fdaGranted: boolean | null;
+  checkFda: () => Promise<void>;
+
   // ---- Toast ----
   toast: string | null;
   showToast: (message: string) => void;
@@ -224,6 +229,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedSnapshotId: null,
   diffResult: null,
   compareLoading: false,
+
+  fdaGranted: null,
+
+  async checkFda() {
+    try {
+      const granted = await backend.checkFullDiskAccess();
+      set({ fdaGranted: granted });
+    } catch {
+      set({ fdaGranted: true }); // fail open: never block the UI over the probe
+    }
+  },
 
   toast: null,
 

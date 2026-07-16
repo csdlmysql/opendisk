@@ -60,6 +60,12 @@ export interface Backend {
   pickFolder(): Promise<string | null>;
   /** macOS Dock icon override (base64 PNG), null restores the default. */
   setDockIcon(pngBase64: string | null): Promise<void>;
+  /** True when the app has Full Disk Access (no per-folder TCC prompts). */
+  checkFullDiskAccess(): Promise<boolean>;
+  /** Open System Settings on the Full Disk Access pane. */
+  openFdaSettings(): Promise<void>;
+  /** Relaunch the app (required after granting FDA). */
+  relaunchApp(): Promise<void>;
   onScanProgress(cb: (p: ScanProgress) => void): Promise<UnlistenFn>;
   onScanComplete(cb: (c: ScanComplete) => void): Promise<UnlistenFn>;
   onScanError(cb: (e: ScanError) => void): Promise<UnlistenFn>;
@@ -138,6 +144,18 @@ function createTauriBackend(): Backend {
     async setDockIcon(pngBase64) {
       const { invoke } = await load();
       await invoke("set_dock_icon", { pngBase64 });
+    },
+    async checkFullDiskAccess() {
+      const { invoke } = await load();
+      return invoke<boolean>("check_full_disk_access");
+    },
+    async openFdaSettings() {
+      const { invoke } = await load();
+      await invoke("open_full_disk_access_settings");
+    },
+    async relaunchApp() {
+      const { invoke } = await load();
+      await invoke("relaunch_app");
     },
     async onScanProgress(cb) {
       const { listen } = await loadEvent();
@@ -221,6 +239,9 @@ function createMockBackend(): Backend {
     setDockIcon: async () => {
       /* no Dock on the web — no-op */
     },
+    checkFullDiskAccess: async () => true, // no TCC on the web
+    openFdaSettings: async () => {},
+    relaunchApp: async () => window.location.reload(),
     onScanProgress: async (cb) => mockBackend.onScanProgress(cb),
     onScanComplete: async (cb) => mockBackend.onScanComplete(cb),
     onScanError: async (cb) => mockBackend.onScanError(cb),

@@ -201,6 +201,38 @@ pub fn open_in_terminal(node_id: i64, state: State<'_, AppState>) -> Result<(), 
     Ok(())
 }
 
+/// True if the app has Full Disk Access. Reading the user TCC database is only
+/// possible with FDA, which makes it a reliable probe (no prompt is triggered).
+#[tauri::command]
+pub fn check_full_disk_access() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let tcc = format!("{home}/Library/Application Support/com.apple.TCC/TCC.db");
+        std::fs::File::open(tcc).is_ok()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+
+/// Open System Settings directly on the Full Disk Access pane.
+#[tauri::command]
+pub fn open_full_disk_access_settings() -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+        .spawn()
+        .map_err(|e| format!("Failed to open System Settings: {e}"))?;
+    Ok(())
+}
+
+/// Relaunch the app (needed for a fresh FDA grant to take effect).
+#[tauri::command]
+pub fn relaunch_app(app: AppHandle) {
+    app.restart();
+}
+
 #[tauri::command]
 pub async fn pick_folder(app: AppHandle) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;

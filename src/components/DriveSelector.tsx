@@ -60,15 +60,44 @@ function DriveRow({ volume }: { volume: Volume }) {
   );
 }
 
+function FdaBanner() {
+  const fdaGranted = useAppStore((s) => s.fdaGranted);
+  const [dismissed, setDismissed] = useState(false);
+  if (fdaGranted !== false || dismissed) return null;
+
+  return (
+    <div className="fda-banner" role="note">
+      <div className="fda-text">
+        <strong>Grant Full Disk Access to scan without interruptions.</strong>
+        <span>
+          Without it, macOS asks permission for every protected folder during a
+          scan. Grant it once in System Settings, then relaunch OpenDisk.
+        </span>
+      </div>
+      <div className="fda-actions">
+        <button className="btn-primary" onClick={() => void backend.openFdaSettings()}>
+          Open System Settings
+        </button>
+        <button onClick={() => void backend.relaunchApp()}>Relaunch</button>
+        <button className="btn-ghost" onClick={() => setDismissed(true)}>
+          Later
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DriveSelector() {
   const volumes = useAppStore((s) => s.volumes);
   const loading = useAppStore((s) => s.volumesLoading);
   const loadVolumes = useAppStore((s) => s.loadVolumes);
   const startScan = useAppStore((s) => s.startScan);
+  const checkFda = useAppStore((s) => s.checkFda);
   const [canPick, setCanPick] = useState(false);
 
   useEffect(() => {
     loadVolumes();
+    void checkFda();
     // pick_folder is always available in the backend (both Rust and mock) — do NOT
     // call pickFolder() here: it opens a real native dialog and blocks the app on startup.
     setCanPick(true);
@@ -98,6 +127,8 @@ export default function DriveSelector() {
         <h1>OpenDisk</h1>
         <div className="sub">Select a disk or folder to analyze</div>
       </div>
+
+      <FdaBanner />
 
       {loading && volumes.length === 0 ? (
         <div className="empty">Loading disks…</div>

@@ -41,6 +41,40 @@ cargo test --manifest-path src-tauri/Cargo.toml
 - Never delete files directly — always move to Trash (`trash` crate).
 - Performance matters: no full-tree IPC transfers, no per-file events, no unthrottled canvas redraws.
 
+## Local release builds & Full Disk Access (macOS)
+
+macOS ties privacy grants (TCC, e.g. Full Disk Access) to the app's code
+signature. Tauri's default ad-hoc signing produces a *different* signature on
+every build, so each rebuild would lose the grant. For local testing, sign
+with a stable self-signed identity instead:
+
+```bash
+# One-time: create a self-signed codeSigning cert named "OpenDisk Dev"
+cat > /tmp/csr.conf <<'CONF'
+[req]
+distinguished_name = dn
+x509_extensions = v3
+prompt = no
+[dn]
+CN = OpenDisk Dev
+[v3]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature
+extendedKeyUsage = critical,codeSigning
+subjectKeyIdentifier = hash
+CONF
+openssl req -x509 -newkey rsa:2048 -keyout /tmp/od.key -out /tmp/od.crt -days 3650 -nodes -config /tmp/csr.conf
+openssl pkcs12 -export -out /tmp/od.p12 -inkey /tmp/od.key -in /tmp/od.crt -password pass:tmp -name "OpenDisk Dev"
+security import /tmp/od.p12 -k ~/Library/Keychains/login.keychain-db -P tmp -T /usr/bin/codesign
+security add-trusted-cert -p codeSign -k ~/Library/Keychains/login.keychain-db /tmp/od.crt
+rm /tmp/od.key /tmp/od.p12
+
+# Then build with:
+./scripts/build-local.sh
+```
+
+Official releases are built by the GitHub Actions release workflow (tag `v*`).
+
 ## Reporting bugs
 
 Open an issue with your macOS version, what you scanned, and reproduction steps. Screenshots welcome.
